@@ -1,0 +1,15 @@
+{
+  "name": "com.skynets.unityfastconsole",
+  "displayName": "Unity Fast Console",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "unity\u5feb\u901f\u63a7\u5236\u53f0, \u65b9\u4fbf\u6267\u884c\u4e00\u6b21\u6027\u4ee3\u7801",
+  "author": {
+    "name": "Dengfeng Li",
+    "url": "http://www.example.com",
+    "email": "example@email.com"
+  },
+  "changelogUrl": "https://example.com/changelog.html",
+  "documentationUrl": "https://example.com/",
+  "licensesUrl": "https://example.com/licensing.html"
+}
