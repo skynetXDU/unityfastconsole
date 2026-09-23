@@ -32,7 +32,7 @@ public class ConsoleEditor : EditorWindow {
 
     private ScrollView codeInputScroller;
 
-    // private float lineHeight;
+    private CodeExec codeExec;
 
     private int lastFirstLine = -1; // 上一次更新行号时, 第一行的编号
 
@@ -44,9 +44,11 @@ public class ConsoleEditor : EditorWindow {
     public void CreateGUI() { // 打开窗口后的回调函数
         uxml.CloneTree(rootVisualElement);
 
-        executeButton = rootVisualElement.Q<ToolbarButton>("toolbar_button");
+        executeButton = rootVisualElement.Q<ToolbarButton>("execute_button");
+        executeButton.clicked += HandleExecuteCode;
 
         resetButton = rootVisualElement.Q<ToolbarButton>("reset_button");
+        resetButton.clicked += HandleResetState;
 
         lineIndexLabel = rootVisualElement.Q<Label>("line_index");
 
@@ -210,5 +212,14 @@ public class ConsoleEditor : EditorWindow {
         }
         lineIndexLabel.style.translate = new Translate(0, offsetY);
         lastFirstLine = firstLine;
+    }
+
+    private void HandleExecuteCode() {
+        codeExec ??= new();
+        codeExec.ExecuteCode(codeInputField.text);
+    }
+
+    private void HandleResetState() {
+        codeExec?.ResetState();
     }
 }
