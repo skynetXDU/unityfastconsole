@@ -59,6 +59,8 @@ public class ConsoleEditor : EditorWindow {
         codeInputField = rootVisualElement.Q<TextField>("code_input");
         codeInputScroller = codeInputField.Q<ScrollView>();
         codeInputField.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、换行
+        // 插入4空格Tab
+        codeInputField.RegisterCallback<KeyDownEvent>(HandleTab, TrickleDown.TrickleDown);
         // 布局发生变化时算行高、更新行号
         codeInputField.RegisterCallback<GeometryChangedEvent>(evt => {
             HandleScroll();
@@ -238,5 +240,19 @@ public class ConsoleEditor : EditorWindow {
         codeHighLighter ??= new();
         string highlightText = codeHighLighter.Highlight(@event.newValue, codeExec);
         codeHighlightLabel.text = highlightText;
+    }
+
+    private void HandleTab(KeyDownEvent evt) {
+        if(evt.keyCode != KeyCode.Tab || evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
+            return;
+        
+        evt.StopPropagation();
+        
+        string value = codeInputField.value ?? "";
+        int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
+        int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
+
+        codeInputField.value = value[..start] + "    " + value[end..];
+        codeInputField.SelectRange(start + 4, start + 4);
     }
 }
