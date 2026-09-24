@@ -30,9 +30,13 @@ public class ConsoleEditor : EditorWindow {
 
     private TextField codeInputField;
 
+    private Label codeHighlightLabel;
+
     private ScrollView codeInputScroller;
 
     private CodeExec codeExec;
+
+    private CodeHighLighter codeHighLighter;
 
     private int lastFirstLine = -1; // 上一次更新行号时, 第一行的编号
 
@@ -54,6 +58,7 @@ public class ConsoleEditor : EditorWindow {
 
         codeInputField = rootVisualElement.Q<TextField>("code_input");
         codeInputScroller = codeInputField.Q<ScrollView>();
+        codeInputField.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、换行
         // 布局发生变化时算行高、更新行号
         codeInputField.RegisterCallback<GeometryChangedEvent>(evt => {
             HandleScroll();
@@ -62,6 +67,11 @@ public class ConsoleEditor : EditorWindow {
         codeInputScroller.verticalScroller.valueChanged += y => {
             HandleScroll();
         };
+        // 编辑时重新计算高亮
+        codeInputField.RegisterValueChangedCallback(HandleHighLight);
+
+        codeHighlightLabel = rootVisualElement.Q<Label>("code_highlight");
+        codeHighlightLabel.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、保留换行
 
         fontMenu = rootVisualElement.Q<ToolbarMenu>("font_menu");
         RegisterFont(fontMenu);
@@ -197,8 +207,6 @@ public class ConsoleEditor : EditorWindow {
         // 第一行的编号
         int firstLine = (int)Math.Floor(codeInputScroller.scrollOffset.y / lineHeight);
         float offsetY = -(codeInputScroller.scrollOffset.y % lineHeight);
-        Debug.Log($"{height}, {lineHeight}, {visibleLines}, {firstLine}, {offsetY}");
-
 
         // 构建行号
         // 只有第一行发生变化时, 才更新行号
@@ -211,6 +219,7 @@ public class ConsoleEditor : EditorWindow {
             lineIndexLabel.text = lineIndicesBuilder.ToString();
         }
         lineIndexLabel.style.translate = new Translate(0, offsetY);
+        codeHighlightLabel.style.translate = new Translate(0, -codeInputScroller.scrollOffset.y);
         lastFirstLine = firstLine;
     }
 
@@ -221,5 +230,13 @@ public class ConsoleEditor : EditorWindow {
 
     private void HandleResetState() {
         codeExec?.ResetState();
+    }
+
+    private void HandleHighLight(ChangeEvent<string> @event) {
+        if(@event.target != codeInputField) return;
+        codeExec ??= new();
+        codeHighLighter ??= new();
+        string highlightText = codeHighLighter.Highlight(@event.newValue, codeExec);
+        codeHighlightLabel.text = highlightText;
     }
 }

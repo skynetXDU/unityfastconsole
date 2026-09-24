@@ -18,6 +18,33 @@ public class CodeExec {
     // 一段C#脚本的描述以及它和前面脚本之间的关系
     private Script<object> script;
 
+    public Script<object> Script => script;
+
+    private ScriptOptions scriptOptions;
+
+    public ScriptOptions ScriptOpts {
+        get {
+            if(scriptOptions != null) return scriptOptions;
+
+            // 防止直接AddReferences(assembly)锁文件导致整个项目重编译失败
+            var references = AppDomain.CurrentDomain.GetAssemblies()
+                         .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
+                         .Select(a => MetadataReference.CreateFromFile(a.Location));
+
+            ScriptOptions options = ScriptOptions.Default
+                                    .AddReferences(references)
+                                    .AddImports(
+                                        "System",
+                                        "System.Collections.Generic",
+                                        "System.Linq",
+                                        "System.Threading.Tasks",
+                                        "UnityEngine",
+                                        "UnityEditor"
+                                    );
+            return scriptOptions = options;
+        }
+    }
+
     // submission表示一次脚本提交、一次控制台执行, 后面的submission可以访问前面submission的变量
     // Roslyn为每一次submission编译出一个独立的、隐藏的程序集, 程序集里面通常有一个隐藏类型
     // 第 0 个槽固定为 globals，这里没有 globals，所以为 null
@@ -43,7 +70,7 @@ public class CodeExec {
             // 因为unity内部没有实现好加载dll的逻辑, 因此需要自己完成加载
             Script<object> newScript;
             if(script == null)
-                newScript = CSharpScript.Create<object>(code, GetScriptOptions());
+                newScript = CSharpScript.Create<object>(code, ScriptOpts);
             else
                 newScript = script.ContinueWith<object>(code);
 
@@ -85,23 +112,6 @@ public class CodeExec {
         script = null;
         submissionStates = new object[2];
         submissionStateCount = 1;
-    }
-
-    private ScriptOptions GetScriptOptions() {
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-                         .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location));
-
-        ScriptOptions options = ScriptOptions.Default
-                                .AddReferences(assemblies)
-                                .AddImports(
-                                    "System",
-                                    "System.Collections.Generic",
-                                    "System.Linq",
-                                    "System.Threading.Tasks",
-                                    "UnityEngine",
-                                    "UnityEditor"
-                                );
-        return options;
     }
 }
 
