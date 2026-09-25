@@ -27,3 +27,41 @@
     border-bottom-left-radius: 0;
     background-color: rgba(0, 0, 0, 0);
 }
+
+.toggle-menu .unity-label {
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    -unity-text-align: middle-center;
+    width: 80%;
+    min-width: auto;
+    min-height: auto;
+}
+
+.toggle-menu .unity-toggle__input {
+    align-items: center;
+    justify-content: flex-start;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.toggle-menu .unity-toggle__checkmark {
+    width: 80%;
+    aspect-ratio: 1;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    background-color: rgb(196, 196, 196);
+}

@@ -7,6 +7,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Scripting;
 using UnityEngine;
 
+/// <summary>
+/// 因为是控制台, 不应该输入大量代码, 输入大量代码时, 推荐关闭高亮
+/// </summary>
 public class CodeHighLighter {
 
     private const string KeywordColor = "#579dd6ff";

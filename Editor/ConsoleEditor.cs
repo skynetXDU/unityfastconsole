@@ -10,6 +10,7 @@ public class ConsoleEditor : EditorWindow {
     private const string FontPrefKey = "unity_fast_console_selected_font";
     private const string FontSizePrefKey = "unity_fast_console_selected_font_size";
     private const string LineSpeacingKey = "unity_fast_console_line_spacing";
+    private const string HighlightEnabled = "unity_fast_console_highlight_enabled";
     private static readonly int[] FontSizes = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
     private static readonly int[] LineSpacings = {0, 12, 24, 36, 48, 60, 72, 84, 96, 100};
 
@@ -26,6 +27,8 @@ public class ConsoleEditor : EditorWindow {
 
     private ToolbarMenu lineSpacingMenu;
 
+    private ToolbarToggle highlightEnabledToggle;
+
     private Label lineIndexLabel;
 
     private TextField codeInputField;
@@ -37,6 +40,12 @@ public class ConsoleEditor : EditorWindow {
     private CodeExec codeExec;
 
     private CodeHighLighter codeHighLighter;
+
+    private Vector2 preservedScrollOffset;
+
+    private int preservedCursorIndex;
+
+    private int preservedSelectIndex;
 
     private int lastFirstLine = -1; // 上一次更新行号时, 第一行的编号
 
@@ -60,6 +69,8 @@ public class ConsoleEditor : EditorWindow {
 
         codeInputField = rootVisualElement.Q<TextField>("code_input");
         codeInputScroller = codeInputField.Q<ScrollView>();
+        // 注册失焦时滚动位置的保护
+        RegisterPreserveState(codeInputField, codeInputScroller);
         codeInputField.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、换行
         // 插入4空格Tab
         codeInputField.RegisterCallback<KeyDownEvent>(HandleTab, TrickleDown.TrickleDown);
@@ -72,7 +83,7 @@ public class ConsoleEditor : EditorWindow {
             HandleScroll();
         };
         // 编辑时重新计算高亮
-        codeInputField.RegisterValueChangedCallback(HandleHighLight);
+        codeInputField.RegisterValueChangedCallback(HandleHighlightCode);
 
         codeHighlightLabel = rootVisualElement.Q<Label>("code_highlight");
         codeHighlightLabel.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、保留换行
@@ -85,6 +96,9 @@ public class ConsoleEditor : EditorWindow {
 
         lineSpacingMenu = rootVisualElement.Q<ToolbarMenu>("line_spacing_menu");
         RegisterLineSpacing(lineSpacingMenu);
+
+        highlightEnabledToggle = rootVisualElement.Q<ToolbarToggle>("highlight_enabled");
+        RegisterCodeHighlight(highlightEnabledToggle);
 
         codeExec = new();
         codeHighLighter = new();
@@ -181,6 +195,42 @@ public class ConsoleEditor : EditorWindow {
         SetLineSpacing(savedLineSpacing);
     }
 
+    private void RegisterCodeHighlight(ToolbarToggle toggle) {
+        string str = EditorUserSettings.GetConfigValue(HighlightEnabled);
+        bool highlightEnabled;
+        if(string.IsNullOrEmpty(str))
+            highlightEnabled = true;
+        else {
+            if(str == "0") highlightEnabled = false;
+            else highlightEnabled = true;
+        }
+        toggle.SetValueWithoutNotify(highlightEnabled);
+        toggle.RegisterValueChangedCallback(HandleHighlightEnabled);
+        codeHighlightLabel.enableRichText = highlightEnabled;
+    }
+    
+    // TextField失去焦点时, blur事件会让TextField跳回顶部
+    // 因此这里保护一下相关状态, 包括滚动位置、光标位置、选择项
+    // Blur和FocusOutEvent的联系: Blur触发于失去焦点后, FocusOutEvent触发于失去焦点前, Blur时焦点已经不在了, FocusOutEvent时焦点还在
+    // Focus和FocusInEvent类似: Focus触发于获得焦点之后, FocusInEvent触发于获得焦点之前;
+    // 而且Blur/Focus不会冒泡到父元素, FocusInEvent/FocusOutEvent会冒泡到父元素
+    private void RegisterPreserveState(TextField textField, ScrollView scrollView) {
+        textField.RegisterCallback<FocusOutEvent>(evt => {
+            preservedScrollOffset = scrollView.scrollOffset;
+            preservedCursorIndex = textField.cursorIndex;
+            preservedSelectIndex = textField.selectIndex;
+        });
+
+        textField.RegisterCallback<BlurEvent>(evt => {
+            textField.schedule.Execute(() => {
+                textField.Focus();
+                textField.SelectRange(preservedCursorIndex, preservedSelectIndex);
+                scrollView.scrollOffset = preservedScrollOffset;
+                HandleScroll();
+            });
+        });
+    }
+
     private void SetFont(string fontName) {
         EditorUserSettings.SetConfigValue(FontPrefKey, fontName);
         Font font = Font.CreateDynamicFontFromOSFont(fontName, 14);
@@ -239,10 +289,31 @@ public class ConsoleEditor : EditorWindow {
         codeExec?.ResetState();
     }
 
-    private void HandleHighLight(ChangeEvent<string> @event) {
+    private void HandleHighlightCode(ChangeEvent<string> @event) {
         if(@event.target != codeInputField) return;
-        string highlightText = codeHighLighter.Highlight(@event.newValue, codeExec);
+        if(highlightEnabledToggle.value){
+            string highlightText = codeHighLighter.Highlight(@event.newValue, codeExec);
+            codeHighlightLabel.text = highlightText;
+        }
+        else
+            codeHighlightLabel.text = @event.newValue;
+    }
+
+    private void HighlightCode() {
+        string highlightText = codeHighLighter.Highlight(codeInputField.text, codeExec);
         codeHighlightLabel.text = highlightText;
+    }
+
+    private void HandleHighlightEnabled(ChangeEvent<bool> changeEvent) {
+        if (changeEvent.newValue) {
+            codeHighlightLabel.enableRichText = true;
+            HighlightCode();
+        }
+        else {
+            codeHighlightLabel.enableRichText = false;
+            codeHighlightLabel.text = codeInputField.text;
+        }
+        EditorUserSettings.SetConfigValue(HighlightEnabled, changeEvent.newValue ? "1" : "0");
     }
 
     private void HandleTab(KeyDownEvent evt) {
