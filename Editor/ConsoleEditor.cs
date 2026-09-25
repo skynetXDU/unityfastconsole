@@ -40,6 +40,8 @@ public class ConsoleEditor : EditorWindow {
 
     private int lastFirstLine = -1; // 上一次更新行号时, 第一行的编号
 
+    private int lastVisibleLines = -1; // 上一次更新行号时, 可见的行数
+
     [MenuItem("Tools/快速控制台2")]
     public static void OpenConsole() {
         GetWindow<ConsoleEditor>("C#控制台"); // 调用它打开窗口
@@ -83,6 +85,9 @@ public class ConsoleEditor : EditorWindow {
 
         lineSpacingMenu = rootVisualElement.Q<ToolbarMenu>("line_spacing_menu");
         RegisterLineSpacing(lineSpacingMenu);
+
+        codeExec = new();
+        codeHighLighter = new();
     }
 
     private void RegisterFont(ToolbarMenu menu) {
@@ -211,8 +216,8 @@ public class ConsoleEditor : EditorWindow {
         float offsetY = -(codeInputScroller.scrollOffset.y % lineHeight);
 
         // 构建行号
-        // 只有第一行发生变化时, 才更新行号
-        if(firstLine != lastFirstLine){
+        // 只有第一行发生变化或可见行数发生变化时, 才更新行号
+        if(firstLine != lastFirstLine || visibleLines != lastVisibleLines){
             StringBuilder lineIndicesBuilder = new();
             for(int index = 1; index <= visibleLines; ++index){
                 int lineIndex = firstLine + index;
@@ -223,10 +228,10 @@ public class ConsoleEditor : EditorWindow {
         lineIndexLabel.style.translate = new Translate(0, offsetY);
         codeHighlightLabel.style.translate = new Translate(0, -codeInputScroller.scrollOffset.y);
         lastFirstLine = firstLine;
+        lastVisibleLines = visibleLines;
     }
 
     private void HandleExecuteCode() {
-        codeExec ??= new();
         codeExec.ExecuteCode(codeInputField.text);
     }
 
@@ -236,8 +241,6 @@ public class ConsoleEditor : EditorWindow {
 
     private void HandleHighLight(ChangeEvent<string> @event) {
         if(@event.target != codeInputField) return;
-        codeExec ??= new();
-        codeHighLighter ??= new();
         string highlightText = codeHighLighter.Highlight(@event.newValue, codeExec);
         codeHighlightLabel.text = highlightText;
     }
