@@ -55,12 +55,12 @@ public class CodeExec {
 
     private bool isExecuting;
 
-    public async void ExecuteCode(string code) {
+    public async Task<bool> ExecuteCode(string code) {
         if(string.IsNullOrEmpty(code))
-            return;
+            return false;
         // 防止快速重复点击，同时运行两个 submission
         if(isExecuting)
-            return;
+            return false;
 
         isExecuting = true;
 
@@ -96,13 +96,15 @@ public class CodeExec {
             submissionStates = newSubmissionStates;
             submissionStateCount = newSubmissionStateCount;
 
-            if(returnValue != null)
-                Debug.Log(returnValue);
+            if(returnValue != null) Debug.Log(returnValue);
+            return true;
         }catch(CompilationErrorException e) {
             foreach(Diagnostic diagnostic in e.Diagnostics)
                 Debug.LogError(diagnostic.ToString());
+            return false;
         }catch(Exception e) {
             Debug.LogException(e);
+            return false;
         }finally {
             isExecuting = false;
         }

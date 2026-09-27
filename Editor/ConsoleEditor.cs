@@ -4,6 +4,9 @@ using UnityEngine;
 using UnityEditor.UIElements;
 using System;
 using System.Text;
+using Microsoft.CodeAnalysis.Completion;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 public class ConsoleEditor : EditorWindow {
 
@@ -40,6 +43,8 @@ public class ConsoleEditor : EditorWindow {
     private CodeExec codeExec;
 
     private CodeHighLighter codeHighLighter;
+
+    private Completion completion;
 
     private Vector2 preservedScrollOffset;
 
@@ -83,7 +88,7 @@ public class ConsoleEditor : EditorWindow {
             HandleScroll();
         };
         // 编辑时重新计算高亮
-        codeInputField.RegisterValueChangedCallback(HandleHighlightCode);
+        codeInputField.RegisterValueChangedCallback(HandleCodeEdit);
 
         codeHighlightLabel = rootVisualElement.Q<Label>("code_highlight");
         codeHighlightLabel.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、保留换行
@@ -102,6 +107,7 @@ public class ConsoleEditor : EditorWindow {
 
         codeExec = new();
         codeHighLighter = new();
+        completion = new();
     }
 
     private void RegisterFont(ToolbarMenu menu) {
@@ -281,33 +287,43 @@ public class ConsoleEditor : EditorWindow {
         lastVisibleLines = visibleLines;
     }
 
-    private void HandleExecuteCode() {
-        codeExec.ExecuteCode(codeInputField.text);
+    private async void HandleExecuteCode() {
+        bool success = await codeExec.ExecuteCode(codeInputField.text);
+        if(success)
+            completion.CommitSubmission(codeInputField.text);
     }
 
     private void HandleResetState() {
         codeExec?.ResetState();
     }
 
-    private void HandleHighlightCode(ChangeEvent<string> @event) {
-        if(@event.target != codeInputField) return;
+    // 编辑代码时调用, 执行高亮、自动补全
+    private async void HandleCodeEdit(ChangeEvent<string> changeEvent) {
+        if(changeEvent.target != codeInputField) return;
         if(highlightEnabledToggle.value){
-            string highlightText = codeHighLighter.Highlight(@event.newValue, codeExec);
+            string highlightText = codeHighLighter.Highlight(changeEvent.newValue, codeExec);
             codeHighlightLabel.text = highlightText;
         }
         else
-            codeHighlightLabel.text = @event.newValue;
-    }
+            codeHighlightLabel.text = changeEvent.newValue;
+        
+        completion.UpdateCode(changeEvent.newValue);
 
-    private void HighlightCode() {
-        string highlightText = codeHighLighter.Highlight(codeInputField.text, codeExec);
-        codeHighlightLabel.text = highlightText;
+        Debug.Log("自动补全");
+        List<CompletionItem> compList = await completion.GetCompletionListAsync(codeInputField.cursorIndex);
+        if(compList == null)
+            return;
+        
+        foreach(CompletionItem item in compList) {
+            Debug.Log(item.DisplayText);
+        }
     }
 
     private void HandleHighlightEnabled(ChangeEvent<bool> changeEvent) {
         if (changeEvent.newValue) {
             codeHighlightLabel.enableRichText = true;
-            HighlightCode();
+            string highlightText = codeHighLighter.Highlight(codeInputField.text, codeExec);
+            codeHighlightLabel.text = highlightText;
         }
         else {
             codeHighlightLabel.enableRichText = false;
