@@ -20,6 +20,9 @@ public class ConsoleEditor : EditorWindow {
     [SerializeField]
     private VisualTreeAsset uxml;
 
+    [SerializeField]
+    private IconSets iconSets;
+
     private ToolbarButton executeButton;
 
     private ToolbarButton resetButton;
@@ -32,6 +35,8 @@ public class ConsoleEditor : EditorWindow {
 
     private ToolbarToggle highlightEnabledToggle;
 
+    private VisualElement editorCodeElement;
+
     private Label lineIndexLabel;
 
     private TextField codeInputField;
@@ -40,11 +45,15 @@ public class ConsoleEditor : EditorWindow {
 
     private ScrollView codeInputScroller;
 
+    private ListView completionListView;
+
     private CodeExec codeExec;
 
     private CodeHighLighter codeHighLighter;
 
     private Completion completion;
+
+    private List<CompletionItem> compList = new();
 
     private Vector2 preservedScrollOffset;
 
@@ -70,6 +79,8 @@ public class ConsoleEditor : EditorWindow {
         resetButton = rootVisualElement.Q<ToolbarButton>("reset_button");
         resetButton.clicked += HandleResetState;
 
+        editorCodeElement = rootVisualElement.Q<VisualElement>("editor_code");
+
         lineIndexLabel = rootVisualElement.Q<Label>("line_index");
 
         codeInputField = rootVisualElement.Q<TextField>("code_input");
@@ -92,6 +103,10 @@ public class ConsoleEditor : EditorWindow {
 
         codeHighlightLabel = rootVisualElement.Q<Label>("code_highlight");
         codeHighlightLabel.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、保留换行
+
+        completionListView = rootVisualElement.Q<ListView>("completion_list");
+        completionListView.itemsSource = compList;
+        completionListView.bindItem = BindCompletionItem;
 
         fontMenu = rootVisualElement.Q<ToolbarMenu>("font_menu");
         RegisterFont(fontMenu);
@@ -244,6 +259,7 @@ public class ConsoleEditor : EditorWindow {
         if(font != null){
             lineIndexLabel.style.unityFontDefinition = fontDef;
             codeInputField.style.unityFontDefinition = fontDef;
+            completionListView.style.unityFontDefinition = fontDef;
         }
     }
 
@@ -257,6 +273,13 @@ public class ConsoleEditor : EditorWindow {
         EditorUserSettings.SetConfigValue(LineSpeacingKey, $"{lineSpacing}");
         lineIndexLabel.style.unityParagraphSpacing = lineSpacing;
         codeInputField.style.unityParagraphSpacing = lineSpacing;
+    }
+
+    private void UpdateCompletionListPosition() {
+        Vector2 posInRoot = codeInputField.ChangeCoordinatesTo(editorCodeElement, codeInputField.cursorPosition);
+        completionListView.style.position = Position.Absolute;
+        completionListView.style.left = posInRoot.x;
+        completionListView.style.top = posInRoot.y;
     }
 
     private void HandleScroll() {
@@ -297,6 +320,11 @@ public class ConsoleEditor : EditorWindow {
         codeExec?.ResetState();
     }
 
+    private void BindCompletionItem(VisualElement element, int index) {
+        element.Q<Image>("icon").vectorImage = iconSets.GetIconByCompletionItem(compList[index]);
+        element.Q<Label>("text").text = compList[index].DisplayText;
+    }
+
     // 编辑代码时调用, 执行高亮、自动补全
     private async void HandleCodeEdit(ChangeEvent<string> changeEvent) {
         if(changeEvent.target != codeInputField) return;
@@ -309,14 +337,13 @@ public class ConsoleEditor : EditorWindow {
         
         completion.UpdateCode(changeEvent.newValue);
 
-        Debug.Log("自动补全");
-        List<CompletionItem> compList = await completion.GetCompletionListAsync(codeInputField.cursorIndex);
-        if(compList == null)
-            return;
+        compList = await completion.GetCompletionListAsync(codeInputField.cursorIndex);
+        compList ??= new();
+
+        completionListView.itemsSource = compList;
+        completionListView.RefreshItems();
         
-        foreach(CompletionItem item in compList) {
-            Debug.Log(item.DisplayText);
-        }
+        codeInputField.schedule.Execute(UpdateCompletionListPosition);
     }
 
     private void HandleHighlightEnabled(ChangeEvent<bool> changeEvent) {

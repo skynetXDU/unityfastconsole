@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 7ab1c75c7d037ab41a6117db68693fb7
+guid: a2634a43ebb4a684ea210fe8869d232f
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -8,7 +8,7 @@ ScriptedImporter:
   assetBundleName: 
   assetBundleVariant: 
   script: {fileID: 12408, guid: 0000000000000000e000000000000000, type: 0}
-  svgType: 0
+  svgType: 3
   texturedSpriteMeshType: 0
   svgPixelsPerUnit: 100
   gradientResolution: 64
@@ -39,15 +39,15 @@ ScriptedImporter:
   useSVGPixelsPerUnit: 0
   spriteData:
     TessellationDetail: 0
-    SpriteName: symbol-keywordSprite
-    SpritePivot: {x: 0.5, y: 0.5}
+    SpriteName: symbol-snippetSprite
+    SpritePivot: {x: NaN, y: NaN}
     SpriteAlignment: 0
     SpriteBorder: {x: 0, y: 0, z: 0, w: 0}
     SpriteRect:
       serializedVersion: 2
       x: 0
       y: 0
-      width: 12
-      height: 13
-    SpriteID: 1c9992a4ba67d76439639dd4e2d87e54
+      width: 0
+      height: 0
+    SpriteID: a9384ad0a7dfd04488aae76caa3697f8
     PhysicsOutlines: []

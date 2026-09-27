@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Composition.Hosting;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -11,6 +10,7 @@ using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
+using UnityEngine.UIElements;
 
 public class CompletionApplyResult {
 
@@ -20,6 +20,16 @@ public class CompletionApplyResult {
 
     public CompletionApplyResult(string c, int index) {
         code = c; cursorIndex = index;
+    }
+}
+
+public class CompletionDisplayItem {
+    public readonly VectorImage icon;
+    public readonly string text;
+
+    public CompletionDisplayItem(VectorImage vi, string t) {
+        icon = vi;
+        text = t;
     }
 }
 
@@ -54,9 +64,6 @@ public class Completion : IDisposable {
             }catch(ReflectionTypeLoadException e) {
                 foreach(Type type in e.Types)
                     if(type != null) parts.Add(type);
-                
-                foreach(Exception ex in e.LoaderExceptions)
-                    UnityEngine.Debug.Log($"Roslyn MEF忽略无法加载的类型: {ex.Message}");
             }
         }
 
@@ -144,10 +151,7 @@ public class Completion : IDisposable {
         Document doc = CurrentDocument;
         if(doc == null) return null;
 
-        UnityEngine.Debug.Log($"Document SourceCodeKind: {doc.SourceCodeKind}");
-
         SyntaxTree tree = await doc.GetSyntaxTreeAsync();
-        UnityEngine.Debug.Log($"SyntaxTree Kind: {tree.Options.Kind}");
 
         CompletionService compSv = CompletionService.GetService(doc);
         if(compSv == null) return null;
