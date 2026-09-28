@@ -12,14 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d05c74c3a1f35244b8b30cb9d86c5df, type: 3}
   m_Name: icon_sets
   m_EditorClassIdentifier: UnityFastConsole.Editor::IconSets
-  defaultIcon: {fileID: 0}
-  methodIcon: {fileID: 0}
-  propertyIcon: {fileID: 0}
-  fieldIcon: {fileID: 0}
-  variableIcon: {fileID: 0}
-  classIcon: {fileID: 0}
-  structureIcon: {fileID: 0}
-  interfaceIcon: {fileID: 0}
-  enumIcon: {fileID: 0}
-  enumMemberIcon: {fileID: 0}
-  keywordIcon: {fileID: 0}
+  defaultIcon: {fileID: 7388822144124034973, guid: efeada3e3ed0f3b4dbbef15bdb6f9579, type: 3}
+  methodIcon: {fileID: 7388822144124034973, guid: 9cc10250e2c8a1045a83275b695f68a4, type: 3}
+  propertyIcon: {fileID: 7388822144124034973, guid: 9bb49ef6282e4ed4e9233b0ca2c07539, type: 3}
+  fieldIcon: {fileID: 7388822144124034973, guid: 66ed60525bcddf34cad7a309446db0a6, type: 3}
+  parameterIcon: {fileID: 7388822144124034973, guid: 90d38bb41e150c3489a4cd85ca2ec075, type: 3}
+  variableIcon: {fileID: 7388822144124034973, guid: d62940ca1e0d6714aa0bc0b08e6380e5, type: 3}
+  classIcon: {fileID: 7388822144124034973, guid: f27fe4c1ff48eba4fa98862301755967, type: 3}
+  structureIcon: {fileID: 7388822144124034973, guid: 98c80008f986d674fabd73216a6d8ecf, type: 3}
+  interfaceIcon: {fileID: 7388822144124034973, guid: 491c683797af3204f94e3cfe34e58698, type: 3}
+  enumIcon: {fileID: 7388822144124034973, guid: b9b76d1ebaa0d8c43b2268a13f775430, type: 3}
+  enumMemberIcon: {fileID: 7388822144124034973, guid: 657e7fff55febe74285d0073337dff83, type: 3}
+  keywordIcon: {fileID: 7388822144124034973, guid: 7372b9c21ec12a341a4da8a8754a1687, type: 3}

@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.CodeAnalysis.Completion;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Threading;
 
 public class ConsoleEditor : EditorWindow {
 
@@ -52,6 +53,8 @@ public class ConsoleEditor : EditorWindow {
     private CodeHighLighter codeHighLighter;
 
     private Completion completion;
+
+    private CancellationTokenSource completionCts; // 用于取消已经开始的异步请求
 
     private List<CompletionItem> compList = new();
 
@@ -123,6 +126,17 @@ public class ConsoleEditor : EditorWindow {
         codeExec = new();
         codeHighLighter = new();
         completion = new();
+    }
+
+    void OnDisable() { // 关闭窗口时也取消已经开始的补全请求
+        // 这里是通用的写法, CancellationToken允许注册取消回调
+        // 如果取消回调里又发起了新的请求, 直接写completionCts?.Cancel();会把新的请求也取消掉;
+        // 但是这个项目里一般没有, 这里只是用了通用的写法
+        CancellationTokenSource cts = completionCts;
+        completionCts = null;
+        cts?.Cancel();
+        completion?.Dispose();
+        completion = null;
     }
 
     private void RegisterFont(ToolbarMenu menu) {
@@ -337,8 +351,22 @@ public class ConsoleEditor : EditorWindow {
         
         completion.UpdateCode(changeEvent.newValue);
 
-        compList = await completion.GetCompletionListAsync(codeInputField.cursorIndex);
-        compList ??= new();
+        completionCts?.Cancel(); // 取消上一次
+        CancellationTokenSource currentCts = new();
+        completionCts = currentCts;
+        try {
+            compList = await completion.GetCompletionListAsync(codeInputField.cursorIndex, currentCts.Token);
+            compList ??= new();
+            // 因为CancellationToken是协作式取消, cancel只是发一个取消的信号, 补全任务却不一定立即停止, 仍然可能返回
+            // 因此检测是否取消过以及是否为最新的补全请求
+            if(currentCts.IsCancellationRequested || !ReferenceEquals(completionCts, currentCts))
+                return;
+        }catch(OperationCanceledException){}
+        finally { // 无论代码是正常完成、发生异常, 还是中途return, finally都会执行
+            if(ReferenceEquals(completionCts, currentCts)) // 判断当前请求是不是最新的
+                completionCts = null;
+            currentCts.Dispose(); // 这是在释放资源
+        }
 
         completionListView.itemsSource = compList;
         completionListView.RefreshItems();

@@ -151,7 +151,7 @@ public class Completion : IDisposable {
         Document doc = CurrentDocument;
         if(doc == null) return null;
 
-        SyntaxTree tree = await doc.GetSyntaxTreeAsync();
+        SyntaxTree tree = await doc.GetSyntaxTreeAsync(cancellationToken);
 
         CompletionService compSv = CompletionService.GetService(doc);
         if(compSv == null) return null;
