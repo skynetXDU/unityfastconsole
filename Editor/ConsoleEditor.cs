@@ -104,6 +104,8 @@ public class ConsoleEditor : EditorWindow {
         };
         // 编辑时重新计算高亮
         codeInputField.RegisterValueChangedCallback(HandleCodeEdit);
+        // 移动光标时让候选框始终追随
+        codeInputField.RegisterCallback<KeyDownEvent>(HandleCursorMove, CallbackOptions.TrickleDown);
 
         codeHighlightLabel = rootVisualElement.Q<Label>("code_highlight");
         codeHighlightLabel.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、保留换行
@@ -294,6 +296,8 @@ public class ConsoleEditor : EditorWindow {
     }
 
     private void UpdateCompletionListPosition() {
+        if(completionListView.resolvedStyle.display == DisplayStyle.None)
+            return;
         Vector2 posInRoot = codeInputField.ChangeCoordinatesTo(editorCodeElement, codeInputField.cursorPosition);
         completionListView.style.position = Position.Absolute;
         completionListView.style.left = posInRoot.x;
@@ -397,6 +401,19 @@ public class ConsoleEditor : EditorWindow {
         completionListView.RefreshItems();
         
         codeInputField.schedule.Execute(UpdateCompletionListPosition);
+    }
+
+    private void HandleCursorMove(KeyDownEvent evt) {
+        switch (evt.keyCode) {
+            case KeyCode.LeftArrow:
+            case KeyCode.RightArrow:
+            case KeyCode.Home:
+            case KeyCode.End:
+            case KeyCode.UpArrow:
+            case KeyCode.DownArrow:
+                codeInputField.schedule.Execute(UpdateCompletionListPosition);
+                break;
+        }
     }
 
     private void HandleHighlightEnabled(ChangeEvent<bool> changeEvent) {
