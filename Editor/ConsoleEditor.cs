@@ -93,6 +93,8 @@ public class ConsoleEditor : EditorWindow {
         // 注册失焦时滚动位置的保护
         RegisterPreserveState(codeInputField, codeInputScroller);
         codeInputField.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、换行
+        // 上下箭头控制补全项的选择
+        codeInputField.RegisterCallback<KeyDownEvent>(HandleCompletionKeyDown, TrickleDown.TrickleDown);
         // 插入4空格Tab
         codeInputField.RegisterCallback<KeyDownEvent>(HandleTab, TrickleDown.TrickleDown);
         // 布局发生变化时算行高、更新行号
@@ -117,8 +119,6 @@ public class ConsoleEditor : EditorWindow {
         completionListView.style.display = DisplayStyle.None;
         // 点击任意位置关闭候选框
         codeInputField.RegisterCallback<PointerDownEvent>(HandleHideCompletionList, TrickleDown.TrickleDown);
-        // 上下箭头控制补全项的选择
-        codeInputField.RegisterCallback<KeyDownEvent>(HandleCompletionNavigation, CallbackOptions.TrickleDown);
 
         fontMenu = rootVisualElement.Q<ToolbarMenu>("font_menu");
         RegisterFont(fontMenu);
@@ -410,22 +410,83 @@ public class ConsoleEditor : EditorWindow {
         });
     }
 
-    private void HandleCompletionNavigation(KeyDownEvent evt) {
+    private void HandleCompletionKeyDown(KeyDownEvent evt) {
         if(completionListView.resolvedStyle.display == DisplayStyle.None) return;
 
         if(compList == null || compList.Count <= 0) return;
 
-        int direction;
-        switch (evt.keyCode) {
-            case KeyCode.UpArrow: direction = -1; break;
-            case KeyCode.DownArrow: direction = 1; break;
-            default: return;
+        // 上下箭头选择补全项
+        if(evt.keyCode == KeyCode.UpArrow || evt.keyCode == KeyCode.DownArrow) {
+            int d = evt.keyCode == KeyCode.UpArrow ? -1 : 1;
+            evt.StopPropagation();
+            MoveCompletionSelection(d);
+            return;
         }
-        evt.StopPropagation();
+        // 按Tab应用补全项
+        if(evt.keyCode == KeyCode.Tab) {
+            if(evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
+                return;
+            evt.StopImmediatePropagation(); // 立即停止事件传播, 防止HandleTab也被调用
+            ApplySelectedCompletionAsync();
+            return;
+        }
+        // 按回车应用补全项, 回车比较特殊, 见下文注释
+        bool isReturnKey = evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter;
+        bool isNewLineChar = evt.character == '\n' || evt.character == '\r';
+        if(!isReturnKey && !isNewLineChar)
+            return;
+        if(evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
+            return;
+        // unity会针对回车发送两次事件
+        // 第一次是字符等于0的物理按键事件, KeyCode为Return或KeypadEnter
+        // 第二次是字符为'\n'或'\r'的字符事件, KeyCode可能为None
+        // 因此针对这两次事件, 都在这里吃掉
+        // 但只有第二次带'\n'或'\r'的事件应用补全
+        evt.StopImmediatePropagation(); // 立即停止事件传播, 防止HandleTab也被调用
+        if(isNewLineChar)
+            ApplySelectedCompletionAsync();
+        
+    }
+
+
+    private void MoveCompletionSelection(int direction) {
         int currentIndex = Math.Clamp(completionListView.selectedIndex, 0, compList.Count - 1);
         int nextIndex = Math.Clamp(currentIndex + direction, 0, compList.Count - 1);
         completionListView.SetSelection(nextIndex);
         completionListView.ScrollToItem(nextIndex);
+    }
+
+    /// <summary>
+    /// 应用选择的补全候选项, 应用完成后隐藏补全候选项列表
+    /// </summary>
+    private async void ApplySelectedCompletionAsync() {
+        int selectedIndex = completionListView.selectedIndex;
+        if(selectedIndex < 0 || selectedIndex >= compList.Count) return;
+
+        CompletionItem selectedItem = compList[selectedIndex];
+        HandleHideCompletionList();
+
+        try {
+            CompletionApplyResult result = await completion.ApplyCompletionAsync(selectedItem);
+
+            if(result == null) return;
+
+            codeInputField.SetValueWithoutNotify(result.code);
+
+            if(highlightEnabledToggle.value)
+                codeHighlightLabel.text = codeHighLighter.Highlight(result.code, codeExec);
+            else
+                codeHighlightLabel.text = result.code;
+            
+            int cursorIndex = Math.Clamp(result.cursorIndex, 0, result.code.Length);
+
+            // codeInputField.Focus();
+            codeInputField.SelectRange(cursorIndex, cursorIndex);
+            // codeInputField.schedule.Execute(() => {
+            //     codeInputField.Focus();
+            //     codeInputField.SelectRange(cursorIndex, cursorIndex);
+            // });
+        }catch(Exception){}
     }
 
     private void HandleCursorMove(KeyDownEvent evt) {
