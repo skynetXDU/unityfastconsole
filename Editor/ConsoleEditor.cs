@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.Completion;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
+using UnityEditor.Search;
 
 public class ConsoleEditor : EditorWindow {
 
@@ -110,6 +111,7 @@ public class ConsoleEditor : EditorWindow {
         completionListView = rootVisualElement.Q<ListView>("completion_list");
         completionListView.itemsSource = compList;
         completionListView.bindItem = BindCompletionItem;
+        completionListView.style.display = DisplayStyle.None;
 
         fontMenu = rootVisualElement.Q<ToolbarMenu>("font_menu");
         RegisterFont(fontMenu);
@@ -355,6 +357,8 @@ public class ConsoleEditor : EditorWindow {
         CancellationTokenSource currentCts = new();
         completionCts = currentCts;
         try {
+            await Task.Delay(100, currentCts.Token);
+
             compList = await completion.GetCompletionListAsync(codeInputField.cursorIndex, currentCts.Token);
             compList ??= new();
             // 因为CancellationToken是协作式取消, cancel只是发一个取消的信号, 补全任务却不一定立即停止, 仍然可能返回
@@ -367,7 +371,9 @@ public class ConsoleEditor : EditorWindow {
                 completionCts = null;
             currentCts.Dispose(); // 这是在释放资源
         }
-
+        if(compList.Count <= 0)
+            return;
+        completionListView.style.display = DisplayStyle.Flex;
         completionListView.itemsSource = compList;
         completionListView.RefreshItems();
         

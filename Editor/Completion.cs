@@ -151,8 +151,6 @@ public class Completion : IDisposable {
         Document doc = CurrentDocument;
         if(doc == null) return null;
 
-        SyntaxTree tree = await doc.GetSyntaxTreeAsync(cancellationToken);
-
         CompletionService compSv = CompletionService.GetService(doc);
         if(compSv == null) return null;
 
@@ -162,11 +160,10 @@ public class Completion : IDisposable {
         CompletionList completionList = await compSv.GetCompletionsAsync(doc, cursorIndex, cancellationToken: cancellationToken);
         if(completionList == null) return new();
 
-        SourceText sourceText = await doc.GetTextAsync(cancellationToken: cancellationToken);
         TextSpan span = completionList.Span; // 这一次源码补全正作用于哪一段文字
         int length = Math.Max(0, cursorIndex - span.Start);
 
-        string filterText = length > 0 ? sourceText.ToString(new TextSpan(span.Start, length)) : "";
+        string filterText = length > 0 ? text.ToString(new TextSpan(span.Start, length)) : "";
         List<CompletionItem> filteredItems = completionList.ItemsList
                                             .Where(item => item.FilterText.StartsWith(filterText, StringComparison.OrdinalIgnoreCase))
                                             .ToList();
