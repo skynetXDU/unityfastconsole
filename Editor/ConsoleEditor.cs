@@ -112,6 +112,8 @@ public class ConsoleEditor : EditorWindow {
         completionListView.itemsSource = compList;
         completionListView.bindItem = BindCompletionItem;
         completionListView.style.display = DisplayStyle.None;
+        // 点击任意位置关闭候选框
+        codeInputField.RegisterCallback<PointerDownEvent>(HandleHideCompletionList, TrickleDown.TrickleDown);
 
         fontMenu = rootVisualElement.Q<ToolbarMenu>("font_menu");
         RegisterFont(fontMenu);
@@ -341,6 +343,14 @@ public class ConsoleEditor : EditorWindow {
         element.Q<Label>("text").text = compList[index].DisplayText;
     }
 
+    private void HandleHideCompletionList(PointerDownEvent evt = null) {
+        // 让异步请求失效
+        CancellationTokenSource cts = completionCts;
+        completionCts = null;
+        cts?.Cancel();
+        completionListView.style.display = DisplayStyle.None;
+    }
+
     // 编辑代码时调用, 执行高亮、自动补全
     private async void HandleCodeEdit(ChangeEvent<string> changeEvent) {
         if(changeEvent.target != codeInputField) return;
@@ -352,6 +362,13 @@ public class ConsoleEditor : EditorWindow {
             codeHighlightLabel.text = changeEvent.newValue;
         
         completion.UpdateCode(changeEvent.newValue);
+
+        int prevLen = changeEvent.previousValue != null ? changeEvent.previousValue.Length : 0;
+        int newLen = changeEvent.newValue != null ? changeEvent.newValue.Length : 0;
+        if(newLen < prevLen) { // 如果是退格, 就不启动补全
+            HandleHideCompletionList();
+            return;
+        }
 
         completionCts?.Cancel(); // 取消上一次
         CancellationTokenSource currentCts = new();
@@ -371,8 +388,10 @@ public class ConsoleEditor : EditorWindow {
                 completionCts = null;
             currentCts.Dispose(); // 这是在释放资源
         }
-        if(compList.Count <= 0)
+        if(compList.Count <= 0){
+            HandleHideCompletionList();
             return;
+        }
         completionListView.style.display = DisplayStyle.Flex;
         completionListView.itemsSource = compList;
         completionListView.RefreshItems();
