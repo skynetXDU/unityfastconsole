@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEditor.Search;
+using UnityEngine.PlayerLoop;
 
 public class ConsoleEditor : EditorWindow {
 
@@ -116,6 +117,8 @@ public class ConsoleEditor : EditorWindow {
         completionListView.style.display = DisplayStyle.None;
         // 点击任意位置关闭候选框
         codeInputField.RegisterCallback<PointerDownEvent>(HandleHideCompletionList, TrickleDown.TrickleDown);
+        // 上下箭头控制补全项的选择
+        codeInputField.RegisterCallback<KeyDownEvent>(HandleCompletionNavigation, CallbackOptions.TrickleDown);
 
         fontMenu = rootVisualElement.Q<ToolbarMenu>("font_menu");
         RegisterFont(fontMenu);
@@ -400,7 +403,29 @@ public class ConsoleEditor : EditorWindow {
         completionListView.itemsSource = compList;
         completionListView.RefreshItems();
         
-        codeInputField.schedule.Execute(UpdateCompletionListPosition);
+        codeInputField.schedule.Execute(() => {
+            completionListView.SetSelection(0);
+            completionListView.ScrollToItem(0);
+            UpdateCompletionListPosition();
+        });
+    }
+
+    private void HandleCompletionNavigation(KeyDownEvent evt) {
+        if(completionListView.resolvedStyle.display == DisplayStyle.None) return;
+
+        if(compList == null || compList.Count <= 0) return;
+
+        int direction;
+        switch (evt.keyCode) {
+            case KeyCode.UpArrow: direction = -1; break;
+            case KeyCode.DownArrow: direction = 1; break;
+            default: return;
+        }
+        evt.StopPropagation();
+        int currentIndex = Math.Clamp(completionListView.selectedIndex, 0, compList.Count - 1);
+        int nextIndex = Math.Clamp(currentIndex + direction, 0, compList.Count - 1);
+        completionListView.SetSelection(nextIndex);
+        completionListView.ScrollToItem(nextIndex);
     }
 
     private void HandleCursorMove(KeyDownEvent evt) {
@@ -408,9 +433,7 @@ public class ConsoleEditor : EditorWindow {
             case KeyCode.LeftArrow:
             case KeyCode.RightArrow:
             case KeyCode.Home:
-            case KeyCode.End:
-            case KeyCode.UpArrow:
-            case KeyCode.DownArrow:
+            case KeyCode.End: //
                 codeInputField.schedule.Execute(UpdateCompletionListPosition);
                 break;
         }
