@@ -8,8 +8,6 @@ using Microsoft.CodeAnalysis.Completion;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
-using UnityEditor.Search;
-using UnityEngine.PlayerLoop;
 
 public class ConsoleEditor : EditorWindow {
 
@@ -93,20 +91,13 @@ public class ConsoleEditor : EditorWindow {
         // 注册失焦时滚动位置的保护
         RegisterPreserveState(codeInputField, codeInputScroller);
         codeInputField.style.whiteSpace = WhiteSpace.Pre; // 保留连续空格、换行
-        // 上下箭头控制补全项的选择
-        codeInputField.RegisterCallback<KeyDownEvent>(HandleCompletionKeyDown, TrickleDown.TrickleDown);
-        // 插入4空格Tab
-        codeInputField.RegisterCallback<KeyDownEvent>(HandleTab, TrickleDown.TrickleDown);
+        codeInputField.RegisterCallback<KeyDownEvent>(HandleEditKeyDown, TrickleDown.TrickleDown);
         // 布局发生变化时算行高、更新行号
-        codeInputField.RegisterCallback<GeometryChangedEvent>(evt => {
-            HandleScroll();
-        });
+        codeInputField.RegisterCallback<GeometryChangedEvent>(evt => { HandleScroll(); });
         // 滚动时更新行号
-        codeInputScroller.verticalScroller.valueChanged += y => {
-            HandleScroll();
-        };
+        codeInputScroller.verticalScroller.valueChanged += y => { HandleScroll(); };
         // 编辑时重新计算高亮
-        codeInputField.RegisterValueChangedCallback(HandleCodeEdit);
+        codeInputField.RegisterValueChangedCallback(HandleCodeEdited);
         // 移动光标时让候选框始终追随
         codeInputField.RegisterCallback<KeyDownEvent>(HandleCursorMove, CallbackOptions.TrickleDown);
 
@@ -359,7 +350,7 @@ public class ConsoleEditor : EditorWindow {
     }
 
     // 编辑代码时调用, 执行高亮、自动补全
-    private async void HandleCodeEdit(ChangeEvent<string> changeEvent) {
+    private async void HandleCodeEdited(ChangeEvent<string> changeEvent) {
         if(changeEvent.target != codeInputField) return;
         if(highlightEnabledToggle.value){
             string highlightText = codeHighLighter.Highlight(changeEvent.newValue, codeExec);
@@ -410,9 +401,34 @@ public class ConsoleEditor : EditorWindow {
         });
     }
 
-    private void HandleCompletionKeyDown(KeyDownEvent evt) {
-        if(completionListView.resolvedStyle.display == DisplayStyle.None) return;
+    private void HandleEditKeyDown(KeyDownEvent evt) {
+        if(completionListView.resolvedStyle.display == DisplayStyle.None)
+            InputTab(evt);
+        else
+            SelectAndApplyCompletionByKeyDown(evt);
+    }
 
+    // 4空格Tab
+    private void InputTab(KeyDownEvent evt) {
+        if(evt.keyCode != KeyCode.Tab || evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
+            return;
+
+        // 上接(1):
+        // 为什么Tab不用处理?
+        // 因为unity内部针对tab的第二次事件作了处理, 默认行为不会把第二次'\t'字符插入文本
+        // Enter没有这个处理, 因此需要手动拦截掉
+        evt.StopPropagation();
+        
+        string value = codeInputField.value ?? "";
+        int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
+        int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
+
+        codeInputField.value = value[..start] + "    " + value[end..];
+        codeInputField.SelectRange(start + 4, start + 4);
+    }
+
+    // 上下箭头控制选择补全项以及按Tab应用补全项
+    private void SelectAndApplyCompletionByKeyDown(KeyDownEvent evt) {
         if(compList == null || compList.Count <= 0) return;
 
         // 上下箭头选择补全项
@@ -426,7 +442,7 @@ public class ConsoleEditor : EditorWindow {
         if(evt.keyCode == KeyCode.Tab) {
             if(evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
                 return;
-            evt.StopImmediatePropagation(); // 立即停止事件传播, 防止HandleTab也被调用
+            evt.StopPropagation(); // 立即停止事件传播, 防止HandleTab也被调用
             ApplySelectedCompletionAsync();
             return;
         }
@@ -437,17 +453,15 @@ public class ConsoleEditor : EditorWindow {
             return;
         if(evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
             return;
-        // unity会针对回车发送两次事件
-        // 第一次是字符等于0的物理按键事件, KeyCode为Return或KeypadEnter
-        // 第二次是字符为'\n'或'\r'的字符事件, KeyCode可能为None
-        // 因此针对这两次事件, 都在这里吃掉
+        // (1) unity会对产生字符的按键发送两次事件, 其中包括回车和Tab
+        // 第一次表示物理按键事件, 携带KeyCode, character为0
+        // 第二次表示字符, KeyCode为None, character为本次按键产生的字符
+        // 因此针对回车产生的这两次事件, 都在这里吃掉
         // 但只有第二次带'\n'或'\r'的事件应用补全
-        evt.StopImmediatePropagation(); // 立即停止事件传播, 防止HandleTab也被调用
+        evt.StopPropagation(); // 立即停止事件传播, 防止HandleTab也被调用
         if(isNewLineChar)
             ApplySelectedCompletionAsync();
-        
     }
-
 
     private void MoveCompletionSelection(int direction) {
         int currentIndex = Math.Clamp(completionListView.selectedIndex, 0, compList.Count - 1);
@@ -511,19 +525,5 @@ public class ConsoleEditor : EditorWindow {
             codeHighlightLabel.text = codeInputField.text;
         }
         EditorUserSettings.SetConfigValue(HighlightEnabled, changeEvent.newValue ? "1" : "0");
-    }
-
-    private void HandleTab(KeyDownEvent evt) {
-        if(evt.keyCode != KeyCode.Tab || evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
-            return;
-        
-        evt.StopPropagation();
-        
-        string value = codeInputField.value ?? "";
-        int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
-        int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
-
-        codeInputField.value = value[..start] + "    " + value[end..];
-        codeInputField.SelectRange(start + 4, start + 4);
     }
 }
