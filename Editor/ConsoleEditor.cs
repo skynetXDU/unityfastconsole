@@ -8,8 +8,34 @@ using Microsoft.CodeAnalysis.Completion;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
+using System.Linq;
 
 public class ConsoleEditor : EditorWindow {
+
+    private static class MathUtil {
+        public static int LowerBound<T>(IList<T> a, T value) where T : IComparable<T> {
+            int left = 0, right = a.Count;
+            while (left < right) {
+                int mid = left + (right - left) / 2;
+                if (a[mid].CompareTo(value) < 0)
+                    left = mid + 1;
+                else
+                    right = mid;
+            }
+            return left;
+        }
+        public static int UpperBound<T>(IList<T> a, T value) where T : IComparable<T> {
+            int left = 0, right = a.Count;
+            while (left < right) {
+                int mid = left + (right - left) / 2;
+                if (a[mid].CompareTo(value) <= 0)
+                    left = mid + 1;
+                else
+                    right = mid;
+            }
+            return left;
+        }
+    }
 
     private const string FontPrefKey = "unity_fast_console_selected_font";
     private const string FontSizePrefKey = "unity_fast_console_selected_font_size";
@@ -67,8 +93,6 @@ public class ConsoleEditor : EditorWindow {
     private int lastFirstLine = -1; // 上一次更新行号时, 第一行的编号
 
     private int lastVisibleLines = -1; // 上一次更新行号时, 可见的行数
-
-    private List<string> rows;
 
     [MenuItem("Tools/快速控制台2")]
     public static void OpenConsole() {
@@ -128,7 +152,6 @@ public class ConsoleEditor : EditorWindow {
         codeExec = new();
         codeHighLighter = new();
         completion = new();
-        rows = new(100);
     }
 
     void OnDisable() { // 关闭窗口时也取消已经开始的补全请求
@@ -410,8 +433,6 @@ public class ConsoleEditor : EditorWindow {
         else
             SelectAndApplyCompletionByKeyDown(evt);
     }
-
-    // 4空格Tab
     private void InputCode(KeyDownEvent evt) {
 
         if(evt.keyCode == KeyCode.Tab) {
@@ -420,23 +441,62 @@ public class ConsoleEditor : EditorWindow {
             // 因为unity内部针对tab的第二次事件作了处理, 默认行为不会把第二次'\t'字符插入文本
             // Enter没有这个处理, 因此需要手动拦截掉
             evt.StopPropagation();
-            string value = codeInputField.value ?? "";
-            int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
-            int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
-            int lineStart = start > 0 ? value.LastIndexOf('\n', start - 1) + 1 : 0; // 找行首位置, 找不到, 则lineStart == 0
+            InputTab(evt.shiftKey);
+        }
+    }
+    private void InputTab(bool shiftKey) {
+        string value = codeInputField.value ?? "";
+        // 选区
+        int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
+        int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
 
-            if(!evt.shiftKey) { // Tab增加缩进
-                codeInputField.value = value[..start] + "    " + value[end..];
-                codeInputField.SelectRange(start + 4, start + 4);
+        // 找出选区涉及的行
+        int lineStart = start > 0 ? value.LastIndexOf('\n', start - 1) + 1 : 0;
+        int lineEnd = value.IndexOf('\n', end);
+        if(lineEnd < 0) lineEnd = value.Length - 1;
+        lineEnd += 1;
+        string[] lines = value[lineStart..lineEnd].Split('\n');
+        int i = 0, j = lines.Length;
+        while(i < j && lines[i] == "") ++i;
+        while(j > i && lines[j - 1] == "") ++j;
+        lines = lines[i..j];
+        if(lines.Length == 0)
+            lines = new[]{""};
+
+        if(lines.Length == 1) { // 只选中了一行, 插入或开头减少4空格缩进
+            string newValue;
+            if(!shiftKey)
+                newValue = value[..start] + "    " + value[end..];
+            else {
+                if(lines[0].StartsWith("    ")) lines[0] = lines[0][4..];
+                else if(lines[0].StartsWith("   ")) lines[0] = lines[0][3..];
+                else if(lines[0].StartsWith("  ")) lines[0] = lines[0][2..];
+                else if(lines[0].StartsWith(" ")) lines[0] = lines[0][1..];
+                newValue = value[..lineStart] + lines[0];
+                if(lineEnd < value.Length)
+                    newValue += '\n' + value[lineEnd..];
             }
-            else { // shift+Tab减少缩进
-                if(value[start..end].Contains('\n')) return; // 先临时只支持单行编辑
-                int tabEnd = 0;
-                // 至多减少4空格缩进
-                while(lineStart + tabEnd < value.Length && value[lineStart + tabEnd] == ' ' && tabEnd < 4) ++tabEnd;
-                codeInputField.value = value[..lineStart] + value[(lineStart + tabEnd)..];
-                codeInputField.SelectRange(start - tabEnd, end - tabEnd);
-            }
+            codeInputField.SetValueWithoutNotify(newValue);
+            codeInputField.SelectRange(codeInputField.cursorIndex + 4, codeInputField.selectIndex + 4);
+        }
+        else { // 选中了多行, 每行插入或开头减少4空格缩进
+            if(!shiftKey)
+                for(i = 0; i < lines.Length; ++i)
+                    lines[i] = "    " + lines[i];
+            else
+                for(i = 0; i < lines.Length; ++i)
+                    if(lines[i].StartsWith("    ")) lines[i] = lines[i][4..];
+                    else if(lines[i].StartsWith("   ")) lines[i] = lines[i][3..];
+                    else if(lines[i].StartsWith("  ")) lines[i] = lines[i][2..];
+                    else if(lines[i].StartsWith(" ")) lines[i] = lines[i][1..];
+            string newValue = value[..lineStart] + string.Join('\n', lines);
+            if(lineEnd < value.Length)
+                newValue += '\n' + value[lineEnd..];
+            codeInputField.SetValueWithoutNotify(newValue);
+            if(codeInputField.cursorIndex > codeInputField.selectIndex) // 从后往前选的
+                codeInputField.SelectRange(end + lines.Length * 4, start + 4);
+            else // 从前往后选的
+                codeInputField.SelectRange(start + 4, end + lines.Length * 4);
         }
     }
 
