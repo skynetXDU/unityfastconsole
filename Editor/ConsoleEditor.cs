@@ -68,6 +68,8 @@ public class ConsoleEditor : EditorWindow {
 
     private int lastVisibleLines = -1; // 上一次更新行号时, 可见的行数
 
+    private List<string> rows;
+
     [MenuItem("Tools/快速控制台2")]
     public static void OpenConsole() {
         GetWindow<ConsoleEditor>("C#控制台"); // 调用它打开窗口
@@ -126,6 +128,7 @@ public class ConsoleEditor : EditorWindow {
         codeExec = new();
         codeHighLighter = new();
         completion = new();
+        rows = new(100);
     }
 
     void OnDisable() { // 关闭窗口时也取消已经开始的补全请求
@@ -403,28 +406,38 @@ public class ConsoleEditor : EditorWindow {
 
     private void HandleEditKeyDown(KeyDownEvent evt) {
         if(completionListView.resolvedStyle.display == DisplayStyle.None)
-            InputTab(evt);
+            InputCode(evt);
         else
             SelectAndApplyCompletionByKeyDown(evt);
     }
 
     // 4空格Tab
-    private void InputTab(KeyDownEvent evt) {
-        if(evt.keyCode != KeyCode.Tab || evt.shiftKey || evt.ctrlKey || evt.altKey || evt.commandKey)
-            return;
+    private void InputCode(KeyDownEvent evt) {
 
-        // 上接(1):
-        // 为什么Tab不用处理?
-        // 因为unity内部针对tab的第二次事件作了处理, 默认行为不会把第二次'\t'字符插入文本
-        // Enter没有这个处理, 因此需要手动拦截掉
-        evt.StopPropagation();
-        
-        string value = codeInputField.value ?? "";
-        int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
-        int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
+        if(evt.keyCode == KeyCode.Tab) {
+            // 上接(1):
+            // 为什么Tab不用处理?
+            // 因为unity内部针对tab的第二次事件作了处理, 默认行为不会把第二次'\t'字符插入文本
+            // Enter没有这个处理, 因此需要手动拦截掉
+            evt.StopPropagation();
+            string value = codeInputField.value ?? "";
+            int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
+            int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
+            int lineStart = start > 0 ? value.LastIndexOf('\n', start - 1) + 1 : 0; // 找行首位置, 找不到, 则lineStart == 0
 
-        codeInputField.value = value[..start] + "    " + value[end..];
-        codeInputField.SelectRange(start + 4, start + 4);
+            if(!evt.shiftKey) { // Tab增加缩进
+                codeInputField.value = value[..start] + "    " + value[end..];
+                codeInputField.SelectRange(start + 4, start + 4);
+            }
+            else { // shift+Tab减少缩进
+                if(value[start..end].Contains('\n')) return; // 先临时只支持单行编辑
+                int tabEnd = 0;
+                // 至多减少4空格缩进
+                while(lineStart + tabEnd < value.Length && value[lineStart + tabEnd] == ' ' && tabEnd < 4) ++tabEnd;
+                codeInputField.value = value[..lineStart] + value[(lineStart + tabEnd)..];
+                codeInputField.SelectRange(start - tabEnd, end - tabEnd);
+            }
+        }
     }
 
     // 上下箭头控制选择补全项以及按Tab应用补全项
