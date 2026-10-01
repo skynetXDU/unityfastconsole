@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
 using System.Linq;
+using PlasticGui.WorkspaceWindow.Items;
 
 public class ConsoleEditor : EditorWindow {
 
@@ -448,6 +449,10 @@ public class ConsoleEditor : EditorWindow {
             evt.StopPropagation();
             InputTab(evt.shiftKey);
         }
+        else if(evt.character == '{' || evt.character == '[' || evt.character == '(' || evt.character == '\'' || evt.character == '\"') { // 自动补全括号
+            evt.StopPropagation();
+            InputSpecialChar(evt.character);
+        }
     }
     private void InputTab(bool shiftKey) {
         string value = codeInputField.value ?? "";
@@ -492,7 +497,6 @@ public class ConsoleEditor : EditorWindow {
                     lines[i] = "    " + lines[i];
             else
                 for(i = 0; i < lines.Length; ++i){
-                    
                     if(lines[i].StartsWith("    ")) { lines[i] = lines[i][4..]; d += 4; }
                     else if(lines[i].StartsWith("   ")) { lines[i] = lines[i][3..]; d += 3; }
                     else if(lines[i].StartsWith("  ")) { lines[i] = lines[i][2..]; d += 2; }
@@ -516,6 +520,83 @@ public class ConsoleEditor : EditorWindow {
                 else
                     codeInputField.SelectRange(start - d0, end - d);
             }
+        }
+    }
+
+    private string GetCharPair(char c) {
+        if(c == '(') return "()";
+        if(c == '[') return "[]";
+        if(c == '{') return "{}";
+        if(c == '\"') return "\"\"";
+        if(c == '\'') return "\'\'";
+        return "";
+    }
+
+    private bool InPairChar(string value, int index) {
+        int p = index - 1;
+        while(p >= 0 && (value[p] == ' ' || value[p] == '\n' || value[p] == '\t' || value[p] == '\r'))
+            --p;
+        int q = index;
+        while(q < value.Length && (value[q] == ' ' || value[q] == '\n' || value[q] == '\t' || value[q] == '\r'))
+            --q;
+        return p >= 0 && q < value.Length && IsPairChar(value[p], value[q]);
+    }
+
+    private bool IsPairChar(char c1, char c2) {
+        if(c1 == '(' && c2 == ')') return true;
+        if(c1 == '[' && c2 == ']') return true;
+        if(c1 == '{' && c2 == '}') return true;
+        if(c1 == '\'' && c2 == '\'') return true;
+        if(c1 == '\"' && c2 == '\"') return true;
+        return false;
+    }
+
+    private char PairChar(char c) {
+        if(c == '(') return ')';
+        if(c == '[') return ']';
+        if(c == '{') return '}';
+        if(c == '\"') return '\"';
+        if(c == '\'') return '\'';
+        return '\0';
+    }
+
+    // 输入特殊字符(各种括号、单双引号)
+    // 如果没有选区
+    //      如果光标处是不可见字符, 就插入自动补全的括号或引号
+    //      如果后面有可见字符, 就按照默认行为插入
+    // 如果出现选区, 就用根据输入的字符用括号或者单双引号把选区包起来
+    private void InputSpecialChar(char c) {
+        // 选区
+        string value = codeInputField.value ?? "";
+        int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
+        int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
+        
+        if(start == end) { // 没有选区
+            // 后面是不可见字符或在成对字符内部
+            if(start == value.Length || value[start] == ' ' || value[start] == '\n' || value[start] == '\t' || value[start] == '\r' || InPairChar(value, start)) {
+                string newValue = value[..start] + GetCharPair(c);
+                if(end < value.Length) newValue += value[end..];
+                codeInputField.SetValueWithoutNotify(newValue);
+                UpdateCodeLabel(newValue);
+                codeInputField.SelectRange(start + 1, start + 1);
+            }
+            else {
+                string newValue = value[..start] + c;
+                if(end < value.Length) newValue += value[end..];
+                codeInputField.SetValueWithoutNotify(newValue);
+                UpdateCodeLabel(newValue);
+                codeInputField.SelectRange(start + 1, start + 1);
+            }
+        }
+        else { // 有选区
+            string newValue = value[..start] + c + value[start..end] + PairChar(c);
+            if(end < value.Length) newValue += value[end..];
+            codeInputField.SetValueWithoutNotify(newValue);
+            UpdateCodeLabel(newValue);
+            if(start < end) // 从前往后选的
+                codeInputField.SelectRange(start + 1, end + 1);
+            else // 从后往前选的
+                codeInputField.SelectRange(end + 1, start + 1);
         }
     }
 
