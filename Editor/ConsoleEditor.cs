@@ -375,17 +375,22 @@ public class ConsoleEditor : EditorWindow {
         completionListView.style.display = DisplayStyle.None;
     }
 
-    // 编辑代码时调用, 执行高亮、自动补全
-    private async void HandleCodeEdited(ChangeEvent<string> changeEvent) {
-        if(changeEvent.target != codeInputField) return;
+    private void UpdateCodeLabel(string newValue) {
         if(highlightEnabledToggle.value){
-            string highlightText = codeHighLighter.Highlight(changeEvent.newValue, codeExec);
+            string highlightText = codeHighLighter.Highlight(newValue, codeExec);
             codeHighlightLabel.text = highlightText;
         }
         else
-            codeHighlightLabel.text = changeEvent.newValue;
+            codeHighlightLabel.text = newValue;
         
-        completion.UpdateCode(changeEvent.newValue);
+        completion.UpdateCode(newValue);
+    }
+
+    // 编辑代码时调用, 执行高亮、自动补全
+    private async void HandleCodeEdited(ChangeEvent<string> changeEvent) {
+        if(changeEvent.target != codeInputField) return;
+        
+        UpdateCodeLabel(changeEvent.newValue);
 
         int prevLen = changeEvent.previousValue != null ? changeEvent.previousValue.Length : 0;
         int newLen = changeEvent.newValue != null ? changeEvent.newValue.Length : 0;
@@ -477,26 +482,40 @@ public class ConsoleEditor : EditorWindow {
                     newValue += '\n' + value[lineEnd..];
             }
             codeInputField.SetValueWithoutNotify(newValue);
+            UpdateCodeLabel(newValue);
             codeInputField.SelectRange(codeInputField.cursorIndex + 4, codeInputField.selectIndex + 4);
         }
         else { // 选中了多行, 每行插入或开头减少4空格缩进
+            int d = 0, d0 = 0;
             if(!shiftKey)
                 for(i = 0; i < lines.Length; ++i)
                     lines[i] = "    " + lines[i];
             else
-                for(i = 0; i < lines.Length; ++i)
-                    if(lines[i].StartsWith("    ")) lines[i] = lines[i][4..];
-                    else if(lines[i].StartsWith("   ")) lines[i] = lines[i][3..];
-                    else if(lines[i].StartsWith("  ")) lines[i] = lines[i][2..];
-                    else if(lines[i].StartsWith(" ")) lines[i] = lines[i][1..];
+                for(i = 0; i < lines.Length; ++i){
+                    
+                    if(lines[i].StartsWith("    ")) { lines[i] = lines[i][4..]; d += 4; }
+                    else if(lines[i].StartsWith("   ")) { lines[i] = lines[i][3..]; d += 3; }
+                    else if(lines[i].StartsWith("  ")) { lines[i] = lines[i][2..]; d += 2; }
+                    else if(lines[i].StartsWith(" ")) { lines[i] = lines[i][1..]; d += 1; }
+                    if(i == 0) d0 = d;
+                }
             string newValue = value[..lineStart] + string.Join('\n', lines);
             if(lineEnd < value.Length)
                 newValue += '\n' + value[lineEnd..];
             codeInputField.SetValueWithoutNotify(newValue);
-            if(codeInputField.cursorIndex > codeInputField.selectIndex) // 从后往前选的
-                codeInputField.SelectRange(end + lines.Length * 4, start + 4);
-            else // 从前往后选的
-                codeInputField.SelectRange(start + 4, end + lines.Length * 4);
+            UpdateCodeLabel(newValue);
+            if(codeInputField.cursorIndex > codeInputField.selectIndex) { // 从后往前选的
+                if(!shiftKey)
+                    codeInputField.SelectRange(end + lines.Length * 4, start + 4);
+                else
+                    codeInputField.SelectRange(end - d, start - d0);
+            }
+            else { // 从前往后选的
+                if(!shiftKey)
+                    codeInputField.SelectRange(start + 4, end + lines.Length * 4);
+                else
+                    codeInputField.SelectRange(start - d0, end - d);
+            }
         }
     }
 
