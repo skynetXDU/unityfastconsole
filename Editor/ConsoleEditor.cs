@@ -8,8 +8,6 @@ using Microsoft.CodeAnalysis.Completion;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
-using System.Linq;
-using PlasticGui.WorkspaceWindow.Items;
 
 public class ConsoleEditor : EditorWindow {
 
