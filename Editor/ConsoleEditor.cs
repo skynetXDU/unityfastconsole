@@ -341,9 +341,10 @@ namespace SKYNET {
         }
 
         private void HandleResetState() {
+            HandleHideCompletionList();
             codeExec?.ResetState();
-            completionCts?.Cancel();
             completion?.ResetState();
+            completion.UpdateCode(codeInputField.value);
         }
 
         private void BindCompletionItem(VisualElement element, int index) {
@@ -378,7 +379,7 @@ namespace SKYNET {
 
             int prevLen = changeEvent.previousValue != null ? changeEvent.previousValue.Length : 0;
             int newLen = changeEvent.newValue != null ? changeEvent.newValue.Length : 0;
-            if (newLen < prevLen) { // 如果是退格, 就不启动补全
+            if (newLen < prevLen || changeEvent.newValue[codeInputField.cursorIndex - 1] == ';') { // 如果是退格或分号, 就不启动补全
                 HandleHideCompletionList();
                 return;
             }
