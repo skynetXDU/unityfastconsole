@@ -328,13 +328,22 @@ public class ConsoleEditor : EditorWindow {
     }
 
     private async void HandleExecuteCode() {
-        bool success = await codeExec.ExecuteCode(codeInputField.text);
-        if(success)
-            completion.CommitSubmission(codeInputField.text);
+        string code = codeInputField.text;
+        executeButton.enabledSelf = resetButton.enabledSelf = false;
+        try {
+            bool success = await codeExec.ExecuteCode(code);
+            if(success)
+                completion?.CommitSubmission(code);
+        }
+        finally {
+            executeButton.enabledSelf = resetButton.enabledSelf = true;
+        }
     }
 
     private void HandleResetState() {
         codeExec?.ResetState();
+        completionCts?.Cancel();
+        completion?.ResetState();
     }
 
     private void BindCompletionItem(VisualElement element, int index) {
@@ -386,7 +395,10 @@ public class ConsoleEditor : EditorWindow {
             // 因此检测是否取消过以及是否为最新的补全请求
             if(currentCts.IsCancellationRequested || !ReferenceEquals(completionCts, currentCts))
                 return;
-        }catch(OperationCanceledException){}
+            }
+        catch (OperationCanceledException) {
+            return;
+        }
         finally { // 无论代码是正常完成、发生异常, 还是中途return, finally都会执行
             if(ReferenceEquals(completionCts, currentCts)) // 判断当前请求是不是最新的
                 completionCts = null;
@@ -438,6 +450,8 @@ public class ConsoleEditor : EditorWindow {
         // 选区
         int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
         int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
+        int cursorIndex = codeInputField.cursorIndex;
+        int selectIndex = codeInputField.selectIndex;
 
         // 找出选区涉及的行
         int lineStart = start > 0 ? value.LastIndexOf('\n', start - 1) + 1 : 0;
@@ -447,27 +461,30 @@ public class ConsoleEditor : EditorWindow {
         string[] lines = value[lineStart..lineEnd].Split('\n');
         int i = 0, j = lines.Length;
         while(i < j && lines[i] == "") ++i;
-        while(j > i && lines[j - 1] == "") ++j;
+        while(j > i && lines[j - 1] == "") --j;
         lines = lines[i..j];
         if(lines.Length == 0)
             lines = new[]{""};
 
         if(lines.Length == 1) { // 只选中了一行, 插入或开头减少4空格缩进
-            string newValue;
+            string newValue; int d0 = 0;
             if(!shiftKey)
                 newValue = value[..start] + "    " + value[end..];
             else {
-                if(lines[0].StartsWith("    ")) lines[0] = lines[0][4..];
-                else if(lines[0].StartsWith("   ")) lines[0] = lines[0][3..];
-                else if(lines[0].StartsWith("  ")) lines[0] = lines[0][2..];
-                else if(lines[0].StartsWith(" ")) lines[0] = lines[0][1..];
+                if(lines[0].StartsWith("    ")) { lines[0] = lines[0][4..]; d0 = 4; }
+                else if(lines[0].StartsWith("   ")) { lines[0] = lines[0][3..]; d0 = 3; }
+                else if(lines[0].StartsWith("  ")) { lines[0] = lines[0][2..]; d0 = 2; }
+                else if(lines[0].StartsWith(" ")) { lines[0] = lines[0][1..]; d0 = 1; }
                 newValue = value[..lineStart] + lines[0];
                 if(lineEnd < value.Length)
                     newValue += '\n' + value[lineEnd..];
             }
             codeInputField.SetValueWithoutNotify(newValue);
             UpdateCodeLabel(newValue);
-            codeInputField.SelectRange(codeInputField.cursorIndex + 4, codeInputField.selectIndex + 4);
+            if(!shiftKey)
+                codeInputField.SelectRange(cursorIndex + 4, selectIndex + 4);
+            else
+                codeInputField.SelectRange(Math.Max(cursorIndex - d0, 0), Math.Max(selectIndex - d0, 0));
         }
         else { // 选中了多行, 每行插入或开头减少4空格缩进
             int d = 0, d0 = 0;
@@ -487,17 +504,17 @@ public class ConsoleEditor : EditorWindow {
                 newValue += '\n' + value[lineEnd..];
             codeInputField.SetValueWithoutNotify(newValue);
             UpdateCodeLabel(newValue);
-            if(codeInputField.cursorIndex > codeInputField.selectIndex) { // 从后往前选的
+            if(cursorIndex > selectIndex) { // 从后往前选的
                 if(!shiftKey)
                     codeInputField.SelectRange(end + lines.Length * 4, start + 4);
                 else
-                    codeInputField.SelectRange(end - d, start - d0);
+                    codeInputField.SelectRange(Math.Max(end - d, 0), Math.Max(start - d0, 0));
             }
             else { // 从前往后选的
                 if(!shiftKey)
                     codeInputField.SelectRange(start + 4, end + lines.Length * 4);
                 else
-                    codeInputField.SelectRange(start - d0, end - d);
+                    codeInputField.SelectRange(Math.Max(start - d0, 0), Math.Max(end - d, 0));
             }
         }
     }
@@ -572,7 +589,7 @@ public class ConsoleEditor : EditorWindow {
             if(end < value.Length) newValue += value[end..];
             codeInputField.SetValueWithoutNotify(newValue);
             UpdateCodeLabel(newValue);
-            if(start < end) // 从前往后选的
+            if(codeInputField.cursorIndex < codeInputField.selectIndex) // 从前往后选的
                 codeInputField.SelectRange(start + 1, end + 1);
             else // 从后往前选的
                 codeInputField.SelectRange(end + 1, start + 1);
@@ -594,7 +611,7 @@ public class ConsoleEditor : EditorWindow {
         lineEnd += 1;
         string row = value[lineStart..lineEnd];
         string leadingSpace = ""; // 前导空格
-        for(int k = 0; k < row.Length && k < 4 && row[k] == ' '; ++k)
+        for(int k = 0; k < row.Length && row[k] == ' '; ++k)
             leadingSpace += ' ';
 
         string newValue;

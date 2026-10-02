@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.Tags;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+namespace SKYNET {
 [CreateAssetMenu(fileName = "代码补全图标", menuName = "Unity Fast Console/补全图标集")]
 public class IconSets : ScriptableObject {
 
@@ -79,4 +80,5 @@ public class IconSets : ScriptableObject {
         
         return defaultIcon;
     }
+}
 }

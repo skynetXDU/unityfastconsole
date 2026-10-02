@@ -213,7 +213,7 @@ public class Completion : IDisposable {
     }
 
     // Reset State 时一起调用
-    public void Reset() {
+    public void ResetState() {
         workspace?.Dispose();
 
         workspace = null;
