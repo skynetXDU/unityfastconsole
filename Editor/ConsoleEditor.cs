@@ -451,7 +451,12 @@ public class ConsoleEditor : EditorWindow {
         }
         else if(evt.character == '{' || evt.character == '[' || evt.character == '(' || evt.character == '\'' || evt.character == '\"') { // 自动补全括号
             evt.StopPropagation();
-            InputSpecialChar(evt.character);
+            InputPairChar(evt.character);
+        }
+        else if(evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter || evt.character == '\n' || evt.character == '\r') {
+            evt.StopPropagation();
+            if(evt.character == '\n')
+                InputEnter();
         }
     }
     private void InputTab(bool shiftKey) {
@@ -532,11 +537,11 @@ public class ConsoleEditor : EditorWindow {
         return "";
     }
 
-    private bool InPairChar(string value, int index) {
-        int p = index - 1;
+    private bool InPairChar(string value, int index, out int p, out int q) {
+        p = index - 1;
         while(p >= 0 && (value[p] == ' ' || value[p] == '\n' || value[p] == '\t' || value[p] == '\r'))
             --p;
-        int q = index;
+        q = index;
         while(q < value.Length && (value[q] == ' ' || value[q] == '\n' || value[q] == '\t' || value[q] == '\r'))
             --q;
         return p >= 0 && q < value.Length && IsPairChar(value[p], value[q]);
@@ -565,7 +570,7 @@ public class ConsoleEditor : EditorWindow {
     //      如果光标处是不可见字符, 就插入自动补全的括号或引号
     //      如果后面有可见字符, 就按照默认行为插入
     // 如果出现选区, 就用根据输入的字符用括号或者单双引号把选区包起来
-    private void InputSpecialChar(char c) {
+    private void InputPairChar(char c) {
         // 选区
         string value = codeInputField.value ?? "";
         int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
@@ -573,7 +578,7 @@ public class ConsoleEditor : EditorWindow {
         
         if(start == end) { // 没有选区
             // 后面是不可见字符或在成对字符内部
-            if(start == value.Length || value[start] == ' ' || value[start] == '\n' || value[start] == '\t' || value[start] == '\r' || InPairChar(value, start)) {
+            if(start == value.Length || value[start] == ' ' || value[start] == '\n' || value[start] == '\t' || value[start] == '\r' || InPairChar(value, start, out int _, out int _)) {
                 string newValue = value[..start] + GetCharPair(c);
                 if(end < value.Length) newValue += value[end..];
                 codeInputField.SetValueWithoutNotify(newValue);
@@ -597,6 +602,42 @@ public class ConsoleEditor : EditorWindow {
                 codeInputField.SelectRange(start + 1, end + 1);
             else // 从后往前选的
                 codeInputField.SelectRange(end + 1, start + 1);
+        }
+    }
+
+    // 输入回车
+    // 如果没有选区
+    //      如果在当前行
+    private void InputEnter() {
+        string value = codeInputField.value ?? "";
+        // 选区
+        int start = Math.Min(codeInputField.cursorIndex, codeInputField.selectIndex);
+        int end = Math.Max(codeInputField.cursorIndex, codeInputField.selectIndex);
+        // 找出选区涉及的行
+        int lineStart = start > 0 ? value.LastIndexOf('\n', start - 1) + 1 : 0;
+        int lineEnd = value.IndexOf('\n', end);
+        if(lineEnd < 0) lineEnd = value.Length - 1;
+        lineEnd += 1;
+        string row = value[lineStart..lineEnd];
+        string leadingSpace = ""; // 前导空格
+        for(int k = 0; k < row.Length && k < 4 && row[k] == ' '; ++k)
+            leadingSpace += ' ';
+
+        string newValue;
+        if(start == end && InPairChar(value, start, out int p, out int q)) {
+            // 在成对字符里面就增加缩进
+            newValue = value[..p] + value[p] + '\n' + leadingSpace + "    " + '\n' + leadingSpace + value[q..];
+            codeInputField.SetValueWithoutNotify(newValue);
+            UpdateCodeLabel(newValue);
+            codeInputField.SelectRange(p + 6 + leadingSpace.Length, p + 6 + leadingSpace.Length);
+        }
+        else { // 否则保持当前行缩进
+            newValue = value[..start] + '\n' + leadingSpace;
+            if(end < value.Length)
+                newValue += value[end..];
+            codeInputField.SetValueWithoutNotify(newValue);
+            UpdateCodeLabel(newValue);
+            codeInputField.SelectRange(start + 1 + leadingSpace.Length, start + 1 + leadingSpace.Length);
         }
     }
 
