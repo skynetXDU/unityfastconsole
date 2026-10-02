@@ -6,10 +6,11 @@
   "description": "unity\u5feb\u901f\u63a7\u5236\u53f0, \u65b9\u4fbf\u6267\u884c\u4e00\u6b21\u6027\u4ee3\u7801",
   "author": {
     "name": "Dengfeng Li",
-    "url": "http://www.example.com",
-    "email": "example@email.com"
+    "url": "https://github.com/skynetXDU/unityfastconsole",
+    "email": "skynetxdu@gmail.com"
   },
-  "changelogUrl": "https://example.com/changelog.html",
-  "documentationUrl": "https://example.com/",
-  "licensesUrl": "https://example.com/licensing.html"
+  "licensesUrl": "https://github.com/skynetXDU/unityfastconsole/blob/master/LICENSE",
+  "dependencies": {
+    "com.unity.vectorgraphics": "3.0.0-preview.7"
+  }
 }
