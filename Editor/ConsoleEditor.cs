@@ -11,31 +11,6 @@ using System.Threading;
 
 public class ConsoleEditor : EditorWindow {
 
-    private static class MathUtil {
-        public static int LowerBound<T>(IList<T> a, T value) where T : IComparable<T> {
-            int left = 0, right = a.Count;
-            while (left < right) {
-                int mid = left + (right - left) / 2;
-                if (a[mid].CompareTo(value) < 0)
-                    left = mid + 1;
-                else
-                    right = mid;
-            }
-            return left;
-        }
-        public static int UpperBound<T>(IList<T> a, T value) where T : IComparable<T> {
-            int left = 0, right = a.Count;
-            while (left < right) {
-                int mid = left + (right - left) / 2;
-                if (a[mid].CompareTo(value) <= 0)
-                    left = mid + 1;
-                else
-                    right = mid;
-            }
-            return left;
-        }
-    }
-
     private const string FontPrefKey = "unity_fast_console_selected_font";
     private const string FontSizePrefKey = "unity_fast_console_selected_font_size";
     private const string LineSpeacingKey = "unity_fast_console_line_spacing";
