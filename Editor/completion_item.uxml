@@ -1,5 +1,5 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
-    <ui:VisualElement name="root" style="flex-grow: 1; flex-direction: row; justify-content: center; height: 20px; width: 200px;">
+    <ui:VisualElement name="root" style="flex-grow: 1; flex-direction: row; justify-content: center; height: 20px; width: 250px;">
         <ui:Image source="project://database/Packages/com.skynets.unityfastconsole/Editor/icons/symbol-class.svg?fileID=7388822144124034973&amp;guid=f27fe4c1ff48eba4fa98862301755967&amp;type=3#symbol-class" tint-color="rgb(255, 255, 255)" name="icon" style="width: 10%; aspect-ratio: 1; align-self: center;"/>
         <ui:Label text="Label" name="text" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 5px; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; flex-grow: 1; -unity-text-align: middle-left;"/>
     </ui:VisualElement>

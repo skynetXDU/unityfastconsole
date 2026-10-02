@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
 
+namespace SKYNET {
 public class ConsoleEditor : EditorWindow {
 
     private const string FontPrefKey = "unity_fast_console_selected_font";
@@ -713,4 +714,5 @@ public class ConsoleEditor : EditorWindow {
         }
         EditorUserSettings.SetConfigValue(HighlightEnabled, changeEvent.newValue ? "1" : "0");
     }
+}
 }

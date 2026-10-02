@@ -12,6 +12,7 @@ using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
 using UnityEngine.UIElements;
 
+namespace SKYNET {
 public class CompletionApplyResult {
 
     public readonly string code;
@@ -227,4 +228,5 @@ public class Completion : IDisposable {
         workspace?.Dispose();
         workspace = null;
     }
+}
 }

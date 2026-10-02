@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Scripting;
 using UnityEngine;
 
+namespace SKYNET {
 /// <summary>
 /// 因为是控制台, 不应该输入大量代码, 输入大量代码时, 推荐关闭高亮
 /// </summary>
@@ -269,4 +270,5 @@ public class CodeHighLighter {
             builder.Append("</noparse>");
         }
     }
+}
 }

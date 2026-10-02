@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
+namespace SKYNET {
 // 一段用户输入的C#脚本要执行, 首先要编译成dll, 才能被加载执行
 public class CodeExec {
 
@@ -241,4 +242,5 @@ internal static class UnityScriptSubmissionExecutor {
         }
         return null;
     }
+}
 }
