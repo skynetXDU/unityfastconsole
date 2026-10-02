@@ -68,7 +68,7 @@ public class ConsoleEditor : EditorWindow {
 
     private int lastVisibleLines = -1; // 上一次更新行号时, 可见的行数
 
-    [MenuItem("Tools/快速控制台2")]
+    [MenuItem("Tools/快速控制台")]
     public static void OpenConsole() {
         GetWindow<ConsoleEditor>("C#控制台"); // 调用它打开窗口
     }
