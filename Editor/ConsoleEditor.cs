@@ -543,7 +543,7 @@ public class ConsoleEditor : EditorWindow {
             --p;
         q = index;
         while(q < value.Length && (value[q] == ' ' || value[q] == '\n' || value[q] == '\t' || value[q] == '\r'))
-            --q;
+            ++q;
         return p >= 0 && q < value.Length && IsPairChar(value[p], value[q]);
     }
 
